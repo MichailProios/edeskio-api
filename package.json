@@ -1,0 +1,29 @@
+{
+  "name": "allcon-api",
+  "version": "1.0.0",
+  "description": "Allcon REST API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon -r dotenv/config index"
+  },
+  "author": "michaelp@allconcontracting.com",
+  "license": "ISC",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
+    "axios": "^0.26.0",
+    "express": "^4.17.2",
+    "express-list-endpoints": "^6.0.0",
+    "cors": "^2.8.5",
+    "colors": "^1.4.0",
+    "dotenv": "^16.0.0",
+    "helmet": "^5.0.2",
+    "moment": "^2.29.1",
+    "sequelize": "^6.16.1",
+    "nodemailer": "^6.7.2",
+    "passport": "^0.5.2",
+    "passport-azure-ad": "^4.3.1",
+    "nodemon": "^2.0.15"
+  }
+}
