@@ -18,6 +18,17 @@ const get_tblRoles_All = asyncHandler(async (req, res, next) => {
   }
 });
 
+const get_tblOrganizations_All = asyncHandler(async (req, res, next) => {
+  try {
+    const tblOrganizations = await edeskio_models.tblOrganizations.findAll();
+
+    return res.status(200).json({ tblOrganizations });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
 const get_tblUsers_One = asyncHandler(async (req, res, next) => {
   try {
     const { username } = req.body;
@@ -108,6 +119,7 @@ const post_tblUsers_tblOrganization_Register_ExistingOrganization =
 
 module.exports = {
   get_tblRoles_All,
+  get_tblOrganizations_All,
   get_tblUsers_One,
   post_tblUsers_tblOrganization_Register_NewOrganization,
   post_tblUsers_tblOrganization_Register_ExistingOrganization,

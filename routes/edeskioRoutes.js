@@ -1,6 +1,7 @@
 const { Router } = require("express");
 const {
   get_tblRoles_All,
+  get_tblOrganizations_All,
   get_tblUsers_One,
   post_tblUsers_tblOrganization_Register_NewOrganization,
   post_tblUsers_tblOrganization_Register_ExistingOrganization,
@@ -8,6 +9,8 @@ const {
 const router = Router();
 
 router.get("/get_tblRoles_All", get_tblRoles_All);
+
+router.get("/get_tblOrganizations_All", get_tblOrganizations_All);
 
 router.get("/get_tblUsers_One", get_tblUsers_One);
 

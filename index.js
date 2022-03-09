@@ -55,7 +55,7 @@ const app = express();
 //app.use(helmet());
 // app.use(cookieParser());
 app.use(express.json());
-// app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 
 app.use(
   session({
@@ -163,19 +163,19 @@ app.use("/api/edeskio", edeskioRoutes);
 app.post("/login", (req, res, next) => {
   passport.authenticate("local", (err, user, info) => {
     if (info) {
-      return res.send(info.message);
+      return res.status(401).send(info.message);
     }
     if (err) {
       return next(err);
     }
     if (!user) {
-      return res.send("Not Authenticated");
+      return res.status(401).send("Not Authenticated");
     }
     req.login(user, (err) => {
       if (err) {
         return next(err);
       }
-      return res.send("Authenticated");
+      return res.status(200).send("Authenticated");
     });
   })(req, res, next);
 });
