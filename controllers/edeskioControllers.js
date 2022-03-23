@@ -76,6 +76,20 @@ const post_tblUsers_tblOrganization_Register_NewOrganization = asyncHandler(
         CompanyID: tblOrganizationsSelect.dataValues.ID,
       });
 
+      const tblUsersSelect =
+        await edeskio_models.tblUsers.findOne({
+          where: {
+            Email: email,
+            UserName: userName,
+            Password: hashedPassword,
+          },
+        });
+
+      const tblAccess = await edeskio_models.tblAccess.create({
+        UserID: tblUsersSelect.dataValues.ID,
+        RoleName: "Admin",
+      });
+
       return res.status(200).json({ msg: "Success" });
     } catch (error) {
       // return res.status(500).send(error.message);
