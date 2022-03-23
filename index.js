@@ -11,6 +11,7 @@ const axios = require("axios");
 const models = require("./models");
 const edeskio_models = models.edeskio.models;
 const sequelize = require("sequelize");
+const { v1: uuidv1, v4: uuidv4 } = require("uuid");
 /*****************************************************************************************************************************/
 
 //https
@@ -57,19 +58,12 @@ const app = express();
 app.use(express.json());
 app.use(cors({ origin: true, credentials: true }));
 
-app.use(
-  session({
-    secret: "secretcode",
-    resave: true,
-    saveUninitialized: true,
-  })
-);
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(
   session({
     genid: (req) => {
-      return uuid(); // use UUIDs for session IDs
+      return uuidv4(); // use UUIDs for session IDs
     },
     // store: new FileStore(),
     secret: "keyboard cat",
@@ -125,7 +119,6 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser((username, done) => {
-  console.log("HEREEE", username);
   const tblUsers = edeskio_models.tblUsers
     .findOne({
       where: {
@@ -147,11 +140,25 @@ passport.deserializeUser((username, done) => {
 
 //Endpoints
 /*****************************************************************************************************************************/
+
+// if the user is authenticated
+var isAuthenticated = function (req, res, next) {
+  if (!req.isAuthenticated()) return next();
+  res.json("not authenticated");
+};
+
 app.get("/", (req, res) => {
   res.send(
     pjson.description + " v" + pjson.version + "<br/> <br/>" + new Date()
   );
 });
+
+// app.get("/api", isAuthenticated, (req, res) => {
+//   // console.log("Validated claims: ", req.authInfo);
+
+//   // Service relies on the name claim.
+//   res.status(200);
+// });
 
 app.get("/endpoints", function (req, res) {
   res.send(listEndpoints(app));
@@ -161,6 +168,9 @@ app.use("/api/email", emailRoutes);
 app.use("/api/edeskio", edeskioRoutes);
 
 app.post("/login", (req, res, next) => {
+  let isAuthenticated = req.isAuthenticated();
+  let session = req.session;
+
   passport.authenticate("local", (err, user, info) => {
     if (info) {
       return res.status(401).send(info.message);
@@ -169,20 +179,29 @@ app.post("/login", (req, res, next) => {
       return next(err);
     }
     if (!user) {
-      return res.status(401).send("Not Authenticated");
+      isAuthenticated = req.isAuthenticated();
+      session = req.session;
+
+      return res.status(200).send({ isAuthenticated, session });
     }
     req.login(user, (err) => {
       if (err) {
         return next(err);
       }
-      return res.status(200).send("Authenticated");
+
+      isAuthenticated = req.isAuthenticated();
+      session = req.session;
+
+      return res.status(200).send({ isAuthenticated, session });
     });
   })(req, res, next);
 });
 
 app.get("/user", (req, res) => {
-  // console.log(req);
-  res.send(req.isAuthenticated()); // The req.user stores the entire user that has been authenticated inside of it.
+  let isAuthenticated = req.isAuthenticated();
+  let session = req.session;
+
+  return res.status(200).send({ isAuthenticated, session });
 });
 
 // app.get("/authrequired", (req, res) => {
@@ -201,8 +220,11 @@ app.get("/user", (req, res) => {
 //Server
 /*****************************************************************************************************************************/
 const httpsOptions = {
-  key: fs.readFileSync("./security/key.pem"),
-  cert: fs.readFileSync("./security/cert.pem"),
+  // key: fs.readFileSync("./security/key.pem"),
+  // cert: fs.readFileSync("./security/cert.pem"),
+
+  key: fs.readFileSync("D:/edeskio/edeskio-api/security/key.pem"),
+  cert: fs.readFileSync("D:/edeskio/edeskio-api/security/cert.pem"),
 };
 
 const serverHttps = https.createServer(httpsOptions, app).listen(8443, () => {
