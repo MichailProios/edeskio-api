@@ -7,7 +7,6 @@ const helmet = require("helmet");
 const cors = require("cors");
 const pjson = require("./package.json");
 const axios = require("axios");
-// const FileStore = require("session-file-store")(session);
 const models = require("./models");
 const edeskio_models = models.edeskio.models;
 const sequelize = require("sequelize");
@@ -34,6 +33,7 @@ const LocalStrategy = require("passport-local").Strategy;
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcryptjs");
 const session = require("express-session");
+// const FileStore = require("session-file-store")(session);
 const bodyParser = require("body-parser");
 const tblUsers = require("./models/edeskio/tblUsers");
 /*****************************************************************************************************************************/
@@ -65,10 +65,12 @@ app.use(
     genid: (req) => {
       return uuidv4(); // use UUIDs for session IDs
     },
-    // store: new FileStore(),
+
     secret: "keyboard cat",
+    // store: new FileStore(),
+    saveUninitialized: false,
     resave: false,
-    saveUninitialized: true,
+    cookie: { maxAge: 3600000, secure: true, httpOnly: true },
   })
 );
 app.use(passport.initialize());
