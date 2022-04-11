@@ -33,7 +33,7 @@ const LocalStrategy = require("passport-local").Strategy;
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcryptjs");
 const session = require("express-session");
-// const FileStore = require("session-file-store")(session);
+const FileStore = require("session-file-store")(session);
 const bodyParser = require("body-parser");
 const tblUsers = require("./models/edeskio/tblUsers");
 /*****************************************************************************************************************************/
@@ -65,12 +65,14 @@ app.use(
     genid: (req) => {
       return uuidv4(); // use UUIDs for session IDs
     },
-
-    secret: "keyboard cat",
-    // store: new FileStore(),
+    secret: "secret",
     saveUninitialized: false,
     resave: false,
-    cookie: { maxAge: 3600000, secure: true, httpOnly: true },
+    cookie: {
+      maxAge: 3600000,
+      secure: true,
+      httpOnly: true,
+    },
   })
 );
 app.use(passport.initialize());
