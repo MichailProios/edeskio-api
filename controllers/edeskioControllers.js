@@ -10,11 +10,15 @@ const Op = sequelize.Op;
 
 const get_tblRoles_All = asyncHandler(async (req, res, next) => {
   try {
+    const { organizationID } = req.query;
+
     const tblRoles = await edeskio_models.tblRoles.findAll();
 
-    const tblAccess = await edeskio_models.tblAccess.findAll();
+    const tblAccess = await edeskio_models.tblAccess.findAll({});
 
-    const tblUsers = await edeskio_models.tblUsers.findAll();
+    const tblUsers = await edeskio_models.tblUsers.findAll({
+      where: { CompanyID: organizationID },
+    });
 
     return res.status(200).json({ tblRoles, tblAccess, tblUsers });
   } catch (error) {
@@ -75,7 +79,13 @@ const get_tblOrganizations_All = asyncHandler(async (req, res, next) => {
 
 const get_tblUsers_All = asyncHandler(async (req, res, next) => {
   try {
-    const tblUsers = await edeskio_models.tblUsers.findAll();
+    const { organizationID } = req.query;
+
+    const tblUsers = await edeskio_models.tblUsers.findAll({
+      where: {
+        CompanyID: organizationID,
+      },
+    });
 
     return res.status(200).json({ tblUsers });
   } catch (error) {
@@ -100,46 +110,33 @@ const get_tblUsers_One = asyncHandler(async (req, res, next) => {
   }
 });
 
-const get_Permissions_All = asyncHandler(async (req, res, next) => {
+const get_tblTickets = asyncHandler(async (req, res, next) => {
   const { OrganizationID } = req.query;
 
   try {
     let tblTickets = await edeskio_models.tblTickets.findAll();
 
-    return res.status(200).json({ tblTickets });
+    let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
+
+    return res.status(200).json({ tblTickets, tblTicketTags });
   } catch (error) {
     // return res.status(500).send(error.message);
     return next(new errorResponse(error.message, 500));
   }
 });
 
-const get_tblTickets = asyncHandler(async (req, res, next) => {
-  const { OrganizationID } = req.query;
-
+const get_tblExpertiseTags_One = asyncHandler(async (req, res, next) => {
   try {
-    // const tblUsers = await edeskio_models.tblUsers.findAll({
-    //   where: {
-    //     CompanyID: OrganizationID,
-    //   },
-    // });
+    const { TechnicianID } = req.query;
 
-    // let tblTickets = [];
+    console.log(TechnicianID);
 
-    // for (const user of tblUsers) {
-    //   let tblTicketsFindAll = await edeskio_models.tblTickets.findAll({
-    //     where: {
-    //       UserID: user.dataValues.ID,
-    //     },
-    //   });
-
-    //   if (tblTicketsFindAll.length !== 0) {
-    //     tblTickets.push(tblTicketsFindAll);
-    //   }
-    // }
-
-    let tblTickets = await edeskio_models.tblTickets.findAll();
-
-    return res.status(200).json({ tblTickets });
+    const tblExpertiseTags = await edeskio_models.tblExpertiseTags.findAll({
+      where: {
+        TechnicianID: TechnicianID,
+      },
+    });
+    return res.status(200).json({ tblExpertiseTags });
   } catch (error) {
     // return res.status(500).send(error.message);
     return next(new errorResponse(error.message, 500));
@@ -167,6 +164,35 @@ const post_tblTickets_NewTicket = asyncHandler(async (req, res, next) => {
     }
 
     return res.status(200).json({ msg: "Success" });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const post_tblExpertiseTags = asyncHandler(async (req, res, next) => {
+  try {
+    const { UserID, Tags } = req.body;
+
+    const currentExpertiseTags = await edeskio_models.tblExpertiseTags.destroy({
+      where: {
+        TechnicianID: UserID,
+      },
+    });
+
+    for (const tag of Tags) {
+      const tblExpertiseTags = await edeskio_models.tblExpertiseTags.create({
+        TechnicianID: UserID,
+        TagType: tag,
+      });
+    }
+
+    const tblExpertiseTags = await edeskio_models.tblExpertiseTags.findAll({
+      where: {
+        TechnicianID: UserID,
+      },
+    });
+    return res.status(200).json({ tblExpertiseTags });
   } catch (error) {
     // return res.status(500).send(error.message);
     return next(new errorResponse(error.message, 500));
@@ -201,6 +227,7 @@ const post_tblUsers_tblOrganization_Register_NewOrganization = asyncHandler(
         LastName: lastName,
         // DateCreated: dateCreated,
         // LastLogin: lastLogin,
+        Approved: true,
         CompanyID: tblOrganizationsSelect.dataValues.ID,
       });
 
@@ -251,6 +278,19 @@ const post_tblUsers_tblOrganization_Register_ExistingOrganization =
         CompanyID: tblOrganizationsSelect.dataValues.ID,
       });
 
+      const tblUsersSelect = await edeskio_models.tblUsers.findOne({
+        where: {
+          Email: email,
+          UserName: userName,
+          Password: hashedPassword,
+        },
+      });
+
+      const tblAccess = await edeskio_models.tblAccess.create({
+        UserID: tblUsersSelect.dataValues.ID,
+        RoleName: "Basic",
+      });
+
       return res.status(200).json({ msg: "Success" });
     } catch (error) {
       // return res.status(500).send(error.message);
@@ -280,7 +320,36 @@ const put_tblTickets_SelfAssign = asyncHandler(async (req, res, next) => {
 
     tblTickets = await edeskio_models.tblTickets.findAll();
 
-    return res.status(200).json({ tblTickets });
+    let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
+
+    return res.status(200).json({ tblTickets, tblTicketTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const put_tblUsers_Approved = asyncHandler(async (req, res, next) => {
+  try {
+    const { UserID, status } = req.body;
+
+    let tblUsers;
+
+    tblUsers = await edeskio_models.tblUsers.findOne({
+      where: {
+        ID: UserID,
+      },
+    });
+
+    tblUsers.set({
+      Approved: status,
+    });
+
+    await tblUsers.save();
+
+    tblUsers = await edeskio_models.tblUsers.findAll();
+
+    return res.status(200).json({ tblUsers });
   } catch (error) {
     // return res.status(500).send(error.message);
     return next(new errorResponse(error.message, 500));
@@ -326,9 +395,12 @@ module.exports = {
   get_tblTickets,
   get_tblUsers_One,
   get_tblUsers_All,
+  get_tblExpertiseTags_One,
   post_tblUsers_tblOrganization_Register_NewOrganization,
   post_tblUsers_tblOrganization_Register_ExistingOrganization,
   post_tblTickets_NewTicket,
+  post_tblExpertiseTags,
   put_tblTickets_SelfAssign,
   put_tblPermissions,
+  put_tblUsers_Approved,
 };
