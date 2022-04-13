@@ -331,7 +331,7 @@ const put_tblTickets_SelfAssign = asyncHandler(async (req, res, next) => {
 
 const put_tblUsers_Approved = asyncHandler(async (req, res, next) => {
   try {
-    const { UserID, status } = req.body;
+    const { UserID, status, organizationID } = req.body;
 
     let tblUsers;
 
@@ -347,7 +347,11 @@ const put_tblUsers_Approved = asyncHandler(async (req, res, next) => {
 
     await tblUsers.save();
 
-    tblUsers = await edeskio_models.tblUsers.findAll();
+    tblUsers = await edeskio_models.tblUsers.findAll({
+      where: {
+        CompanyID: organizationID,
+      },
+    });
 
     return res.status(200).json({ tblUsers });
   } catch (error) {
@@ -358,25 +362,27 @@ const put_tblUsers_Approved = asyncHandler(async (req, res, next) => {
 
 const put_tblPermissions = asyncHandler(async (req, res, next) => {
   try {
-    const { updatedRow, oldRow } = req.body;
+    const { updatedRow, oldRow, organizationID } = req.body;
 
     let tblAccess;
 
     tblAccess = await edeskio_models.tblAccess.findOne({
       where: {
-        ID: updatedRow.updatedRow.ID,
+        ID: updatedRow.ID,
       },
     });
 
     tblAccess.set({
-      RoleName: updatedRow.updatedRow.RoleName,
+      RoleName: updatedRow.RoleName,
     });
 
     await tblAccess.save();
 
     tblAccess = await edeskio_models.tblAccess.findAll();
 
-    const tblUsers = await edeskio_models.tblUsers.findAll();
+    const tblUsers = await edeskio_models.tblUsers.findAll({
+      where: { CompanyID: organizationID },
+    });
 
     const tblRoles = await edeskio_models.tblRoles.findAll();
 
