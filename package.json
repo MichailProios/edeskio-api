@@ -29,6 +29,7 @@
     "passport-local": "^1.0.0",
     "sequelize": "^6.16.1",
     "session-file-store": "^1.5.0",
+    "socket.io": "^4.4.1",
     "tedious": "^14.3.0"
   }
 }

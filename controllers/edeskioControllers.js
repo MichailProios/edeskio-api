@@ -29,8 +29,41 @@ const get_tblRoles_All = asyncHandler(async (req, res, next) => {
 
 const get_tblTags_All = asyncHandler(async (req, res, next) => {
   try {
-    const tblTags = await edeskio_models.tblTags.findAll();
+    const { OrganizationID } = req.query;
+
+    console.log("0", OrganizationID);
+
+    const tblTags = await db.tblTags.findAll({
+      include: [
+        {
+          model: db.tblTagCategories,
+          attributes: ["Category", "CompanyID", "BackgroundColor", "Color"],
+          where: {
+            CompanyID: OrganizationID,
+          },
+        },
+      ],
+      raw: true,
+    });
+
     return res.status(200).json({ tblTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const get_tblTagCategories = asyncHandler(async (req, res, next) => {
+  try {
+    const { OrganizationID } = req.query;
+
+    const tblTagCategories = await edeskio_models.tblTagCategories.findAll({
+      where: {
+        CompanyID: OrganizationID,
+      },
+    });
+
+    return res.status(200).json({ tblTagCategories });
   } catch (error) {
     // return res.status(500).send(error.message);
     return next(new errorResponse(error.message, 500));
@@ -114,9 +147,36 @@ const get_tblTickets = asyncHandler(async (req, res, next) => {
   const { OrganizationID } = req.query;
 
   try {
-    let tblTickets = await edeskio_models.tblTickets.findAll();
+    const tblUsers_AllFromOrg = await edeskio_models.tblUsers.findAll({
+      where: {
+        CompanyID: OrganizationID,
+        Approved: "1",
+      },
+    });
 
-    let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
+    let tblUsers_AllFromOrg_userIDs = [];
+
+    tblUsers_AllFromOrg.forEach((element) => {
+      tblUsers_AllFromOrg_userIDs.push(element.dataValues.ID);
+    });
+
+    let tblTickets = await edeskio_models.tblTickets.findAll({
+      where: {
+        UserID: tblUsers_AllFromOrg_userIDs.map((element) => parseInt(element)),
+      },
+    });
+
+    let tblTickets_ticketIDs = [];
+
+    tblTickets.forEach((element) => {
+      tblTickets_ticketIDs.push(element.dataValues.ID);
+    });
+
+    let tblTicketTags = await edeskio_models.tblTicketTags.findAll({
+      where: {
+        TicketID: tblTickets_ticketIDs.map((element) => parseInt(element)),
+      },
+    });
 
     return res.status(200).json({ tblTickets, tblTicketTags });
   } catch (error) {
@@ -129,14 +189,77 @@ const get_tblExpertiseTags_One = asyncHandler(async (req, res, next) => {
   try {
     const { TechnicianID } = req.query;
 
-    console.log(TechnicianID);
-
     const tblExpertiseTags = await edeskio_models.tblExpertiseTags.findAll({
       where: {
         TechnicianID: TechnicianID,
       },
     });
     return res.status(200).json({ tblExpertiseTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const get_TechniciansAssignInfo = asyncHandler(async (req, res, next) => {
+  try {
+    const { UserID } = req.query;
+
+    const tblUsers = await edeskio_models.tblUsers.findOne({
+      where: {
+        ID: UserID,
+      },
+    });
+
+    const tblUsers_All = await edeskio_models.tblUsers.findAll({
+      where: {
+        CompanyID: tblUsers.dataValues.CompanyID,
+        Approved: "1",
+      },
+    });
+
+    let tblUsers_All_userIDs = [];
+
+    tblUsers_All.forEach((element) => {
+      tblUsers_All_userIDs.push(element.dataValues.ID);
+    });
+
+    const tblAccess_AllTechs = await edeskio_models.tblAccess.findAll({
+      where: {
+        UserID: tblUsers_All_userIDs.map((element) => parseInt(element)),
+        RoleName: ["Tech", "Admin"],
+      },
+    });
+
+    let tblAccess_AllTechs_userIDs = [];
+
+    tblAccess_AllTechs.forEach((element) => {
+      tblAccess_AllTechs_userIDs.push(element.dataValues.UserID);
+    });
+
+    const tblUsers_AllTechs = await edeskio_models.tblUsers.findAll({
+      where: {
+        ID: tblAccess_AllTechs_userIDs.map((element) => parseInt(element)),
+      },
+    });
+
+    const tblExpertiseTags_AllTechs =
+      await edeskio_models.tblExpertiseTags.findAll({
+        where: {
+          TechnicianID: tblAccess_AllTechs_userIDs.map((element) =>
+            parseInt(element)
+          ),
+        },
+        order: [["TagType"]],
+      });
+
+    const TechTicketCount = await db.edeskio.query(
+      `SELECT TechnicianID, COUNT(TechnicianID) as NumOfTickets FROM tblTickets WHERE TechnicianID IS NOT NULL AND ClosedDate IS NULL GROUP BY TechnicianID `
+    );
+
+    return res
+      .status(200)
+      .json({ tblUsers_AllTechs, tblExpertiseTags_AllTechs, TechTicketCount });
   } catch (error) {
     // return res.status(500).send(error.message);
     return next(new errorResponse(error.message, 500));
@@ -169,6 +292,62 @@ const post_tblTickets_NewTicket = asyncHandler(async (req, res, next) => {
     return next(new errorResponse(error.message, 500));
   }
 });
+
+const post_tblTags_NewTag = asyncHandler(async (req, res, next) => {
+  try {
+    const { TagType, CategoryID, OrganizationID } = req.body;
+
+    const tblTags_new = await edeskio_models.tblTags.create({
+      Type: TagType,
+      CategoryID: CategoryID,
+    });
+
+    const tblTags = await db.tblTags.findAll({
+      include: [
+        {
+          model: db.tblTagCategories,
+          attributes: ["Category", "CompanyID", "BackgroundColor", "Color"],
+          where: {
+            CompanyID: OrganizationID,
+          },
+        },
+      ],
+      raw: true,
+    });
+
+    return res.status(200).json({ tblTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const post_tblTagCategories_NewCategory = asyncHandler(
+  async (req, res, next) => {
+    try {
+      const { Category, BackgroundColor, Color, OrganizationID } = req.body;
+
+      const tblTagCategoriesInstance =
+        await edeskio_models.tblTagCategories.create({
+          Category: Category,
+          CompanyID: OrganizationID,
+          BackgroundColor: BackgroundColor,
+          Color: Color,
+        });
+
+      const tblTagCategories = await edeskio_models.tblTagCategories.findAll({
+        where: {
+          CompanyID: OrganizationID,
+        },
+      });
+
+      return res.status(200).json({ tblTagCategories });
+    } catch (error) {
+      // return res.status(500).send(error.message);
+      return next(new errorResponse(error.message, 500));
+    }
+  }
+);
 
 const post_tblExpertiseTags = asyncHandler(async (req, res, next) => {
   try {
@@ -298,7 +477,7 @@ const post_tblUsers_tblOrganization_Register_ExistingOrganization =
     }
   });
 
-const put_tblTickets_SelfAssign = asyncHandler(async (req, res, next) => {
+const put_tblTickets_Assign = asyncHandler(async (req, res, next) => {
   try {
     const { TicketID, TechnicianID, OpenDate } = req.body;
 
@@ -323,6 +502,160 @@ const put_tblTickets_SelfAssign = asyncHandler(async (req, res, next) => {
     let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
 
     return res.status(200).json({ tblTickets, tblTicketTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const put_tblTickets_AutoAssign = asyncHandler(async (req, res, next) => {
+  try {
+    const { TicketID, CaseNumber, OpenDate } = req.body;
+
+    const TechIDQuery = await db.edeskio.query(
+      `EXECUTE [dbo].[spGetTechIDAutoAssign] @ticketID = ${TicketID}  ,@caseNumber = ${CaseNumber}`
+    );
+
+    const TechID = TechIDQuery[0][0].TechnicianID;
+
+    let tblTickets;
+
+    tblTickets = await edeskio_models.tblTickets.findOne({
+      where: {
+        ID: TicketID,
+      },
+    });
+
+    tblTickets.set({
+      TechnicianID: TechID,
+      Status: "Open",
+      OpenDate: OpenDate,
+    });
+
+    await tblTickets.save();
+
+    tblTickets = await edeskio_models.tblTickets.findAll();
+
+    let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
+
+    return res.status(200).json({ tblTickets, tblTicketTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const put_tblTickets_Priority = asyncHandler(async (req, res, next) => {
+  try {
+    const { TicketID, Priority } = req.body;
+
+    let tblTickets;
+
+    tblTickets = await edeskio_models.tblTickets.findOne({
+      where: {
+        ID: TicketID,
+      },
+    });
+
+    tblTickets.set({
+      Priority: Priority,
+    });
+
+    await tblTickets.save();
+
+    tblTickets = await edeskio_models.tblTickets.findAll();
+
+    let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
+
+    return res.status(200).json({ tblTickets, tblTicketTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const put_tblTags_ManageTags = asyncHandler(async (req, res, next) => {
+  try {
+    const { TagType, Category, OrganizationID } = req.body;
+
+    let tblTagsInstance;
+
+    const tblTagCategoriesInstance =
+      await edeskio_models.tblTagCategories.findOne({
+        where: {
+          Category: Category,
+          CompanyID: OrganizationID,
+        },
+        order: [["CategoryID"]],
+      });
+
+    tblTagsInstance = await edeskio_models.tblTags.findOne({
+      where: {
+        Type: TagType,
+      },
+      order: [["Type"]],
+    });
+
+    tblTagsInstance.set({
+      CategoryID: tblTagCategoriesInstance.dataValues.CategoryID,
+    });
+
+    await tblTagsInstance.save();
+
+    const tblTags = await db.tblTags.findAll({
+      include: [
+        {
+          model: db.tblTagCategories,
+          attributes: ["Category", "CompanyID", "BackgroundColor", "Color"],
+          where: {
+            CompanyID: OrganizationID,
+          },
+        },
+      ],
+      raw: true,
+    });
+
+    return res.status(200).json({ tblTags });
+  } catch (error) {
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
+  }
+});
+
+const put_tblTagCategories_ManageTags = asyncHandler(async (req, res, next) => {
+  try {
+    const { CategoryID, BackgroundColor, Color } = req.body;
+
+    let tblTagCategories;
+
+    tblTagCategories = await edeskio_models.tblTagCategories.findOne({
+      where: {
+        CategoryID: CategoryID,
+      },
+      order: [["CategoryID"]],
+    });
+
+    tblTagCategories.set({
+      BackgroundColor: BackgroundColor,
+      Color: Color,
+    });
+
+    await tblTagCategories.save();
+
+    const tblTags = await db.tblTags.findAll({
+      include: [
+        {
+          model: db.tblTagCategories,
+          attributes: ["Category", "CompanyID", "BackgroundColor", "Color"],
+          where: {
+            CompanyID: tblTagCategories.dataValues.CompanyID,
+          },
+        },
+      ],
+      raw: true,
+    });
+
+    return res.status(200).json({ tblTags });
   } catch (error) {
     // return res.status(500).send(error.message);
     return next(new errorResponse(error.message, 500));
@@ -393,20 +726,69 @@ const put_tblPermissions = asyncHandler(async (req, res, next) => {
   }
 });
 
+const delete_tblTags = asyncHandler(async (req, res, next) => {
+  try {
+    const { TagType, OrganizationID } = req.body;
+
+    const tblTagsInstance = await edeskio_models.tblTags.destroy({
+      where: {
+        Type: TagType.toString(),
+      },
+    });
+
+    const tblTags = await db.tblTags.findAll({
+      include: [
+        {
+          model: db.tblTagCategories,
+          attributes: ["Category", "CompanyID", "BackgroundColor", "Color"],
+          where: {
+            CompanyID: OrganizationID,
+          },
+        },
+      ],
+      raw: true,
+    });
+
+    return res.status(200).json({ tblTags });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+    // return next(new ErrorResponse(error.message, 500));
+  }
+});
+
+const notifications_WebSocket = asyncHandler(async (req, res, next) => {
+  try {
+    var io = req.app.get("socketio");
+    // io.emit("hi!");
+  } catch (error) {
+    console.log(error);
+  }
+});
+
 module.exports = {
   get_tblRoles_All,
   get_tblOrganizations_All,
   get_tblTags_All,
+  get_tblTagCategories,
   get_tblUser,
   get_tblTickets,
   get_tblUsers_One,
   get_tblUsers_All,
   get_tblExpertiseTags_One,
+  get_TechniciansAssignInfo,
   post_tblUsers_tblOrganization_Register_NewOrganization,
   post_tblUsers_tblOrganization_Register_ExistingOrganization,
   post_tblTickets_NewTicket,
+  post_tblTags_NewTag,
+  post_tblTagCategories_NewCategory,
   post_tblExpertiseTags,
-  put_tblTickets_SelfAssign,
+  put_tblTickets_Assign,
+  put_tblTickets_AutoAssign,
+  put_tblTickets_Priority,
   put_tblPermissions,
+  put_tblTags_ManageTags,
+  put_tblTagCategories_ManageTags,
   put_tblUsers_Approved,
+  delete_tblTags,
+  notifications_WebSocket,
 };

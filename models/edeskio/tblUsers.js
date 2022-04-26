@@ -2,7 +2,7 @@ module.exports = (sequelize, DataTypes) => {
   const tblUsers = sequelize.define(
     "tblUsers",
     {
-      ID: DataTypes.INTEGER,
+      ID: { type: DataTypes.INTEGER, primaryKey: true },
       Email: DataTypes.STRING,
       UserName: DataTypes.STRING,
       Password: DataTypes.STRING,
@@ -15,6 +15,16 @@ module.exports = (sequelize, DataTypes) => {
     },
     { freezeTableName: true, timestamps: false }
   );
+
+  tblUsers.associate = (models) => {
+    tblUsers.hasMany(models.tblNotifications, {
+      foreignKey: "UserID",
+    });
+
+    tblUsers.hasMany(models.tblNotificationsUsers, {
+      foreignKey: "UserID",
+    });
+  };
 
   tblUsers.removeAttribute("id");
 

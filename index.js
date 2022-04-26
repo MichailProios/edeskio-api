@@ -46,13 +46,13 @@ const tblUsers = require("./models/edeskio/tblUsers");
 /*****************************************************************************************************************************/
 const app = express();
 
-// app.use(
-//   compression({
-//     filter: function () {
-//       return true;
-//     },
-//   })
-// );
+app.use(
+  compression({
+    filter: function () {
+      return true;
+    },
+  })
+);
 //app.use(helmet());
 // app.use(cookieParser());
 app.use(express.json());
@@ -221,17 +221,33 @@ app.get("/user", (req, res) => {
 
 /*****************************************************************************************************************************/
 
-//Server
+//HTTPS
 /*****************************************************************************************************************************/
 const httpsOptions = {
-  // key: fs.readFileSync("./security/key.pem"),
-  // cert: fs.readFileSync("./security/cert.pem"),
-
   key: fs.readFileSync("D:/edeskio/edeskio-api/security/key.pem"),
   cert: fs.readFileSync("D:/edeskio/edeskio-api/security/cert.pem"),
 };
 
-const serverHttps = https.createServer(httpsOptions, app).listen(8443, () => {
-  console.log("HTTPS server listening on port " + 8443);
-});
+const serverHttps = https.createServer(httpsOptions, app);
 /*****************************************************************************************************************************/
+
+//Socket.io
+/*****************************************************************************************************************************/
+const io = require("socket.io")(serverHttps, {
+  cors: { origin: true, credentials: true },
+});
+
+//Mount namespaces
+require("./websockets/notifications")(io);
+
+//Pass socket io instance to req
+app.set("socketio", io);
+
+/*****************************************************************************************************************************/
+
+//Server
+/*****************************************************************************************************************************/
+serverHttps.listen(8443, () => {
+  console.log("HTTPS server listening on port " + 8443);
+  /*****************************************************************************************************************************/
+});
