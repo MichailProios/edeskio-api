@@ -1,71 +1,71 @@
 const models = require("../models");
 const edeskio_models = models.edeskio.models;
 
-const notifications = (io) => {
+const notifications = async (io) => {
   //Define namespace
   /***************************************************************************************************************/
   var nsp = io.of(process.env.WEBSOCKET_ENDPOINT_PREFIX + "/notifications");
   /***************************************************************************************************************/
+
+  edeskio_models.tblTickets.afterCreate(
+    "insertNotifications",
+    async (ticket, options) => {
+      edeskio_models.tblNotifications
+        .create({
+          UserID: ticket.dataValues.UserID,
+          TicketID: ticket.dataValues.ID,
+          Content: "Created a New Ticket",
+        })
+        .then(() => {
+          edeskio_models.tblNotificationsUsers
+            .findAll({
+              include: [
+                {
+                  model: edeskio_models.tblNotifications,
+                  include: [
+                    {
+                      model: edeskio_models.tblUsers,
+                    },
+                  ],
+                },
+              ],
+              where: { Read: false },
+              raw: true,
+            })
+            .then((notifications) => {
+              nsp.emit("notificationNew", { notifications });
+            });
+        });
+    }
+  );
 
   //Open connection
   /***************************************************************************************************************/
   nsp.on("connection", (socket) => {
     console.log("Notifications " + socket.id + " connected");
 
-    //notification New
-    /***************************************************************************************************************/
-    socket.on("notificationNew", ({ userID, notification }, successful) => {
-      edeskio_models.tblNotificationsUsers
-        .findAll({
-          include: [
-            {
-              model: edeskio_models.tblNotifications,
-              include: [
-                {
-                  model: edeskio_models.tblUsers,
-                },
-              ],
-            },
-          ],
-
-          raw: true,
-        })
-        .then((notifications) => {
-          nsp.emit("notificationNew", { notifications });
-        });
-
-      if (notification.length > 0 && typeof notification !== "undefined") {
-        edeskio_models.tblNotifications
-          .create({
-            UserID: userID,
-            Content: notification,
-          })
-          .then(() => {
-            edeskio_models.tblNotificationsUsers
-              .findAll({
-                include: [
-                  {
-                    model: edeskio_models.tblNotifications,
-                    include: [
-                      {
-                        model: edeskio_models.tblUsers,
-                      },
-                    ],
-                  },
-                ],
-
-                raw: true,
-              })
-              .finally(() => successful(true))
-              .catch(() => successful(false));
-          });
-      }
-    });
-    /***************************************************************************************************************/
+    edeskio_models.tblNotificationsUsers
+      .findAll({
+        include: [
+          {
+            model: edeskio_models.tblNotifications,
+            include: [
+              {
+                model: edeskio_models.tblUsers,
+              },
+            ],
+          },
+        ],
+        where: { Read: false },
+        raw: true,
+      })
+      .then((notifications) => {
+        nsp.emit("notificationNew", { notifications });
+      });
 
     //Notifications Read
     /***************************************************************************************************************/
-    socket.on("notificationRead", ({ notificationID }, successful) => {
+    socket.on("notificationRead", ({ userID, notificationID }) => {
       edeskio_models.tblNotificationsUsers
         .update(
           {
@@ -73,7 +73,8 @@ const notifications = (io) => {
           },
           {
             where: {
-              ID: notificationID,
+              UserID: userID,
+              NotificationID: notificationID,
             },
           }
         )
@@ -90,14 +91,13 @@ const notifications = (io) => {
                   ],
                 },
               ],
+              where: { Read: false },
 
               raw: true,
             })
             .then((notifications) => {
               nsp.emit("notificationNew", { notifications });
-            })
-            .finally(() => successful(true))
-            .catch(() => successful(false));
+            });
         });
     });
     /***************************************************************************************************************/

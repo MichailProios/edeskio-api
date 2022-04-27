@@ -24,6 +24,10 @@ module.exports = (sequelize, DataTypes) => {
     tblUsers.hasMany(models.tblNotificationsUsers, {
       foreignKey: "UserID",
     });
+
+    tblUsers.hasMany(models.tblTickets, {
+      foreignKey: "UserID",
+    });
   };
 
   tblUsers.removeAttribute("id");

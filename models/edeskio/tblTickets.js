@@ -2,7 +2,7 @@ module.exports = (sequelize, DataTypes) => {
   const tblTickets = sequelize.define(
     "tblTickets",
     {
-      ID: DataTypes.INTEGER,
+      ID: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       UserID: DataTypes.INTEGER,
       TechnicianID: DataTypes.INTEGER,
       Subject: DataTypes.STRING,
@@ -14,8 +14,23 @@ module.exports = (sequelize, DataTypes) => {
       OpenDate: DataTypes.STRING,
       ClosedDate: DataTypes.STRING,
     },
+
     { freezeTableName: true, timestamps: false }
   );
+
+  tblTickets.associate = (models) => {
+    tblTickets.hasMany(models.tblNotifications, {
+      foreignKey: "TicketID",
+    });
+
+    tblTickets.hasMany(models.tblNotifications, {
+      foreignKey: "TicketID",
+    });
+
+    tblTickets.belongsTo(models.tblUsers, {
+      foreignKey: "UserID",
+    });
+  };
 
   tblTickets.removeAttribute("id");
 

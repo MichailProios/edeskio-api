@@ -161,6 +161,11 @@ const get_tblTickets = asyncHandler(async (req, res, next) => {
     });
 
     let tblTickets = await edeskio_models.tblTickets.findAll({
+      include: [
+        {
+          model: edeskio_models.tblUsers,
+        },
+      ],
       where: {
         UserID: tblUsers_AllFromOrg_userIDs.map((element) => parseInt(element)),
       },
@@ -497,7 +502,13 @@ const put_tblTickets_Assign = asyncHandler(async (req, res, next) => {
 
     await tblTickets.save();
 
-    tblTickets = await edeskio_models.tblTickets.findAll();
+    tblTickets = await edeskio_models.tblTickets.findAll({
+      include: [
+        {
+          model: edeskio_models.tblUsers,
+        },
+      ],
+    });
 
     let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
 
@@ -534,7 +545,13 @@ const put_tblTickets_AutoAssign = asyncHandler(async (req, res, next) => {
 
     await tblTickets.save();
 
-    tblTickets = await edeskio_models.tblTickets.findAll();
+    tblTickets = await edeskio_models.tblTickets.findAll({
+      include: [
+        {
+          model: edeskio_models.tblUsers,
+        },
+      ],
+    });
 
     let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
 
@@ -563,7 +580,13 @@ const put_tblTickets_Priority = asyncHandler(async (req, res, next) => {
 
     await tblTickets.save();
 
-    tblTickets = await edeskio_models.tblTickets.findAll();
+    tblTickets = await edeskio_models.tblTickets.findAll({
+      include: [
+        {
+          model: edeskio_models.tblUsers,
+        },
+      ],
+    });
 
     let tblTicketTags = await edeskio_models.tblTicketTags.findAll();
 

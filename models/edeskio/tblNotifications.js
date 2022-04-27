@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
 
   tblNotifications.associate = (models) => {
     tblNotifications.belongsTo(models.tblUsers, { foreignKey: "UserID" });
+    tblNotifications.belongsTo(models.tblTickets, { foreignKey: "TicketID" });
     tblNotifications.hasMany(models.tblNotificationsUsers, {
       foreignKey: "NotificationID",
     });
