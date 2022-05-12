@@ -2,7 +2,7 @@ module.exports = (sequelize, DataTypes) => {
   const tblUsers = sequelize.define(
     "tblUsers",
     {
-      ID: { type: DataTypes.INTEGER, primaryKey: true },
+      ID: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       Email: DataTypes.STRING,
       UserName: DataTypes.STRING,
       Password: DataTypes.STRING,
@@ -27,6 +27,10 @@ module.exports = (sequelize, DataTypes) => {
 
     tblUsers.hasMany(models.tblTickets, {
       foreignKey: "UserID",
+    });
+
+    tblUsers.hasMany(models.tblMessages, {
+      foreignKey: "SentBy",
     });
   };
 

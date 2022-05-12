@@ -30,6 +30,14 @@ module.exports = (sequelize, DataTypes) => {
     tblTickets.belongsTo(models.tblUsers, {
       foreignKey: "UserID",
     });
+
+    tblTickets.hasMany(models.tblMessages, {
+      foreignKey: "TicketID",
+    });
+
+    tblTickets.hasMany(models.tblTicketTags, {
+      foreignKey: "TicketID",
+    });
   };
 
   tblTickets.removeAttribute("id");
