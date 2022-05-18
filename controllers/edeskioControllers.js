@@ -1248,7 +1248,7 @@ const get_Statistics = asyncHandler(async (req, res, next) => {
     );
 
     const ticketsUnresolved = await db.edeskio.query(
-      `SELECT CAST('Last 3 days' as varchar(100)) as Timeframe, 
+      `SELECT CAST('Submitted within last 3 days' as varchar(100)) as Timeframe, 
           (SELECT COUNT(*) 
             FROM tblTickets t
             LEFT JOIN tblUsers u
@@ -1257,7 +1257,7 @@ const get_Statistics = asyncHandler(async (req, res, next) => {
       into #unresolved
 
       INSERT INTO #unresolved (Timeframe, TicketAmount)
-      SELECT CAST('3-7 days ago' as varchar(100)) as Timeframe, 
+      SELECT CAST('Submitted 4-7 days ago' as varchar(100)) as Timeframe, 
           (SELECT COUNT(*) 
             FROM tblTickets t
             LEFT JOIN tblUsers u
@@ -1265,7 +1265,7 @@ const get_Statistics = asyncHandler(async (req, res, next) => {
             WHERE u.CompanyID = ${organizationID} AND t.SubmissionDate < DATEADD(DAY,-3,GETDATE()) AND t.SubmissionDate >= DATEADD(DAY,-7,GETDATE())) AS TicketAmount
 
       INSERT INTO #unresolved (Timeframe, TicketAmount)
-      SELECT CAST('Over 7 days ago' as varchar(100)) as Timeframe, 
+      SELECT CAST('Submitted over 7 days ago' as varchar(100)) as Timeframe, 
           (SELECT COUNT(*) 
             FROM tblTickets t
             LEFT JOIN tblUsers u
