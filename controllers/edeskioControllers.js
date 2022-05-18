@@ -161,7 +161,7 @@ const get_tblTickets = asyncHandler(async (req, res, next) => {
     // let tblTickets = await edeskio_models.tblTickets.findAll({
     //   include: [
     //     {
-    //       model: edeskio_models.tblUsers, // really?
+    //       model: edeskio_models.tblUsers,
     //     },
     //   ],
     //   where: {
@@ -185,18 +185,29 @@ const get_tblTickets = asyncHandler(async (req, res, next) => {
       include: [
         {
           model: db.tblUsers,
-          attributes: [],
+          // attributes: [],
+          as: "User",
           where: {
             CompanyID: OrganizationID,
             Approved: "1",
           },
         },
+        {
+          model: db.tblUsers,
+          // attributes: [],
+          as: "Technician",
+          required: false,
+        },
       ],
-      raw: true,
+      // raw: true,
     });
 
     const tblTicketTags = await db.tblTicketTags.findAll({
       include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
         {
           model: db.tblTickets,
           attributes: [],
@@ -220,10 +231,17 @@ const get_tblExpertiseTags_One = asyncHandler(async (req, res, next) => {
     const { TechnicianID } = req.query;
 
     const tblExpertiseTags = await edeskio_models.tblExpertiseTags.findAll({
+      include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
+      ],
       where: {
         TechnicianID: TechnicianID,
       },
     });
+
     return res.status(200).json({ tblExpertiseTags });
   } catch (error) {
     // return res.status(500).send(error.message);
@@ -240,6 +258,8 @@ const get_TechniciansAssignInfo = asyncHandler(async (req, res, next) => {
         ID: UserID,
       },
     });
+
+    console.log(tblUsers);
 
     const tblUsers_All = await edeskio_models.tblUsers.findAll({
       where: {
@@ -275,16 +295,27 @@ const get_TechniciansAssignInfo = asyncHandler(async (req, res, next) => {
 
     const tblExpertiseTags_AllTechs =
       await edeskio_models.tblExpertiseTags.findAll({
+        include: [
+          {
+            model: db.tblTags,
+            attributes: ["Type"],
+            order: [["Type"]],
+          },
+        ],
         where: {
           TechnicianID: tblAccess_AllTechs_userIDs.map((element) =>
             parseInt(element)
           ),
         },
-        order: [["TagType"]],
+        order: [["TagID"]],
+        raw: true,
       });
 
     const TechTicketCount = await db.edeskio.query(
-      `SELECT TechnicianID, COUNT(TechnicianID) as NumOfTickets FROM tblTickets WHERE TechnicianID IS NOT NULL AND ClosedDate IS NULL GROUP BY TechnicianID `
+      `SELECT TechnicianID, b.FirstName + ' ' + b.LastName as FullName, COUNT(TechnicianID) as NumOfTickets FROM tblTickets a
+      INNER JOIN tblUsers b
+      ON a.TechnicianID = b.ID
+      WHERE a.TechnicianID IS NOT NULL AND a.Status != 'Closed' AND b.CompanyID = ${tblUsers.dataValues.CompanyID}  GROUP BY TechnicianID, b.FirstName, b.LastName `
     );
 
     return res
@@ -309,10 +340,10 @@ const post_tblTickets_NewTicket = asyncHandler(async (req, res, next) => {
       Priority: "Medium",
     });
 
-    for (const tag of Tags) {
+    for (const tagID of Tags) {
       const tblTicketTags = await edeskio_models.tblTicketTags.create({
         TicketID: tblTickets.dataValues.ID,
-        TagType: tag,
+        TagID: tagID,
       });
     }
 
@@ -331,6 +362,11 @@ const get_tblMessages_OneTicket = asyncHandler(async (req, res, next) => {
       where: {
         TicketID: TicketID,
       },
+      include: [
+        {
+          model: edeskio_models.tblUsers,
+        },
+      ],
     });
 
     return res.status(200).json({ tblMessages });
@@ -406,18 +442,25 @@ const post_tblExpertiseTags = asyncHandler(async (req, res, next) => {
       },
     });
 
-    for (const tag of Tags) {
+    for (const tagID of Tags) {
       const tblExpertiseTags = await edeskio_models.tblExpertiseTags.create({
         TechnicianID: UserID,
-        TagType: tag,
+        TagID: tagID,
       });
     }
 
     const tblExpertiseTags = await edeskio_models.tblExpertiseTags.findAll({
+      include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
+      ],
       where: {
         TechnicianID: UserID,
       },
     });
+
     return res.status(200).json({ tblExpertiseTags });
   } catch (error) {
     // return res.status(500).send(error.message);
@@ -473,7 +516,7 @@ const post_tblUsers_tblOrganization_Register_NewOrganization = asyncHandler(
       return res.status(200).json({ msg: "Success" });
     } catch (error) {
       // return res.status(500).send(error.message);
-      console.log(error);
+
       return next(new errorResponse(error.message, 500));
     }
   }
@@ -540,6 +583,11 @@ const post_tblMessages_NewMessage = asyncHandler(async (req, res, next) => {
     });
 
     const tblMessages = await edeskio_models.tblMessages.findAll({
+      include: [
+        {
+          model: edeskio_models.tblUsers,
+        },
+      ],
       where: {
         TicketID: TicketID,
       },
@@ -556,6 +604,8 @@ const put_tblTickets_Assign = asyncHandler(async (req, res, next) => {
   try {
     const { TicketID, TechnicianID, OpenDate } = req.body;
 
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+
     let tblTickets;
 
     tblTickets = await edeskio_models.tblTickets.findOne({
@@ -564,11 +614,20 @@ const put_tblTickets_Assign = asyncHandler(async (req, res, next) => {
       },
     });
 
-    tblTickets.set({
-      TechnicianID: TechnicianID,
-      Status: "Open",
-      OpenDate: OpenDate,
-    });
+    if (tblTickets.dataValues.OpenDate === null) {
+      tblTickets.set({
+        TechnicianID: TechnicianID,
+        Status: "Open",
+        OpenDate: OpenDate,
+        LastModified: date,
+      });
+    } else {
+      tblTickets.set({
+        TechnicianID: TechnicianID,
+        Status: "Open",
+        LastModified: date,
+      });
+    }
 
     await tblTickets.save();
 
@@ -583,6 +642,7 @@ const put_tblTickets_Assign = asyncHandler(async (req, res, next) => {
         {
           model: db.tblUsers,
           attributes: [],
+          as: "User",
           where: {
             CompanyID: tblUsers.dataValues.CompanyID,
             Approved: "1",
@@ -594,6 +654,10 @@ const put_tblTickets_Assign = asyncHandler(async (req, res, next) => {
 
     const tblTicketTags = await db.tblTicketTags.findAll({
       include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
         {
           model: db.tblTickets,
           attributes: [],
@@ -616,6 +680,8 @@ const put_tblTickets_AutoAssign = asyncHandler(async (req, res, next) => {
   try {
     const { TicketID, CaseNumber, OpenDate } = req.body;
 
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+
     const TechIDQuery = await db.edeskio.query(
       `EXECUTE [dbo].[spGetTechIDAutoAssign] @ticketID = ${TicketID}  ,@caseNumber = ${CaseNumber}`
     );
@@ -630,11 +696,20 @@ const put_tblTickets_AutoAssign = asyncHandler(async (req, res, next) => {
       },
     });
 
-    tblTickets.set({
-      TechnicianID: TechID,
-      Status: "Open",
-      OpenDate: OpenDate,
-    });
+    if (tblTickets.dataValues.OpenDate === null) {
+      tblTickets.set({
+        TechnicianID: TechID,
+        Status: "Open",
+        OpenDate: OpenDate,
+        LastModified: date,
+      });
+    } else {
+      tblTickets.set({
+        TechnicianID: TechID,
+        Status: "Open",
+        LastModified: date,
+      });
+    }
 
     await tblTickets.save();
 
@@ -649,6 +724,7 @@ const put_tblTickets_AutoAssign = asyncHandler(async (req, res, next) => {
         {
           model: db.tblUsers,
           attributes: [],
+          as: "User",
           where: {
             CompanyID: tblUsers.dataValues.CompanyID,
             Approved: "1",
@@ -660,6 +736,10 @@ const put_tblTickets_AutoAssign = asyncHandler(async (req, res, next) => {
 
     const tblTicketTags = await db.tblTicketTags.findAll({
       include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
         {
           model: db.tblTickets,
           attributes: [],
@@ -682,6 +762,8 @@ const put_tblTickets_Priority = asyncHandler(async (req, res, next) => {
   try {
     const { TicketID, Priority } = req.body;
 
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+
     let tblTickets;
 
     tblTickets = await edeskio_models.tblTickets.findOne({
@@ -692,6 +774,7 @@ const put_tblTickets_Priority = asyncHandler(async (req, res, next) => {
 
     tblTickets.set({
       Priority: Priority,
+      LastModified: date,
     });
 
     await tblTickets.save();
@@ -707,6 +790,7 @@ const put_tblTickets_Priority = asyncHandler(async (req, res, next) => {
         {
           model: db.tblUsers,
           attributes: [],
+          as: "User",
           where: {
             CompanyID: tblUsers.dataValues.CompanyID,
             Approved: "1",
@@ -718,6 +802,10 @@ const put_tblTickets_Priority = asyncHandler(async (req, res, next) => {
 
     const tblTicketTags = await db.tblTicketTags.findAll({
       include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
         {
           model: db.tblTickets,
           attributes: [],
@@ -738,22 +826,21 @@ const put_tblTickets_Priority = asyncHandler(async (req, res, next) => {
 
 const put_tblTags_ManageTags = asyncHandler(async (req, res, next) => {
   try {
-    const { TagType, Category, OrganizationID } = req.body;
+    const { TagID, CategoryID, OrganizationID } = req.body;
 
     let tblTagsInstance;
 
     const tblTagCategoriesInstance =
       await edeskio_models.tblTagCategories.findOne({
         where: {
-          Category: Category,
-          CompanyID: OrganizationID,
+          CategoryID: CategoryID,
         },
         order: [["CategoryID"]],
       });
 
     tblTagsInstance = await edeskio_models.tblTags.findOne({
       where: {
-        Type: TagType,
+        ID: TagID,
       },
       order: [["Type"]],
     });
@@ -876,7 +963,7 @@ const put_tblPermissions = asyncHandler(async (req, res, next) => {
     tblAccess = await edeskio_models.tblAccess.findAll();
 
     const tblUsers = await edeskio_models.tblUsers.findAll({
-      where: { CompanyID: organizationID },
+      where: { CompanyID: organizationID, Approved: true },
     });
 
     const tblRoles = await edeskio_models.tblRoles.findAll();
@@ -891,6 +978,7 @@ const put_tblPermissions = asyncHandler(async (req, res, next) => {
 const put_tblTickets_CloseTicket = asyncHandler(async (req, res, next) => {
   try {
     const { TicketID } = req.body;
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
 
     let tblTickets;
 
@@ -901,6 +989,8 @@ const put_tblTickets_CloseTicket = asyncHandler(async (req, res, next) => {
     });
 
     tblTickets.set({
+      LastModified: date,
+      ClosedDate: date,
       Status: "Closed",
     });
 
@@ -917,6 +1007,7 @@ const put_tblTickets_CloseTicket = asyncHandler(async (req, res, next) => {
         {
           model: db.tblUsers,
           attributes: [],
+          as: "User",
           where: {
             CompanyID: tblUsers.dataValues.CompanyID,
             Approved: "1",
@@ -928,6 +1019,10 @@ const put_tblTickets_CloseTicket = asyncHandler(async (req, res, next) => {
 
     const tblTicketTags = await db.tblTicketTags.findAll({
       include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
         {
           model: db.tblTickets,
           attributes: [],
@@ -948,23 +1043,39 @@ const put_tblTickets_CloseTicket = asyncHandler(async (req, res, next) => {
 
 const delete_tblTags = asyncHandler(async (req, res, next) => {
   try {
-    const { TagType, OrganizationID, TechnicianID } = req.body;
+    const { TagID, OrganizationID, TechnicianID } = req.body;
+
+    let tblTags = await db.tblTags.findOne({
+      include: [
+        {
+          model: db.tblTagCategories,
+          attributes: ["CompanyID"],
+          where: {
+            CompanyID: OrganizationID,
+          },
+        },
+      ],
+      where: {
+        ID: TagID,
+      },
+      raw: true,
+    });
 
     let tblExpertiseTags = await edeskio_models.tblExpertiseTags.destroy({
       where: {
-        TagType: TagType.toString(),
+        TagID: TagID,
       },
     });
 
     let tblTicketTags = await edeskio_models.tblTicketTags.destroy({
       where: {
-        TagType: TagType.toString(),
+        TagID: TagID,
       },
     });
 
-    let tblTags = await edeskio_models.tblTags.destroy({
+    tblTags = await edeskio_models.tblTags.destroy({
       where: {
-        Type: TagType.toString(),
+        ID: TagID,
       },
     });
 
@@ -982,6 +1093,12 @@ const delete_tblTags = asyncHandler(async (req, res, next) => {
     });
 
     tblExpertiseTags = await edeskio_models.tblExpertiseTags.findAll({
+      include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
+      ],
       where: {
         TechnicianID: TechnicianID,
       },
@@ -990,7 +1107,6 @@ const delete_tblTags = asyncHandler(async (req, res, next) => {
     return res.status(200).json({ tblTags, tblExpertiseTags });
   } catch (error) {
     return res.status(500).json({ error: error.message });
-    // return next(new ErrorResponse(error.message, 500));
   }
 });
 
@@ -1022,6 +1138,12 @@ const delete_tblTickets = asyncHandler(async (req, res, next) => {
         },
       });
 
+    const tblMessages = await edeskio_models.tblMessages.destroy({
+      where: {
+        TicketID: TicketID,
+      },
+    });
+
     const tblNotifications = await edeskio_models.tblNotifications.destroy({
       where: {
         TicketID: TicketID,
@@ -1039,6 +1161,7 @@ const delete_tblTickets = asyncHandler(async (req, res, next) => {
         {
           model: db.tblTickets,
           attributes: [],
+          as: "Ticket",
           where: {
             ID: TicketID,
           },
@@ -1046,6 +1169,8 @@ const delete_tblTickets = asyncHandler(async (req, res, next) => {
       ],
       raw: true,
     });
+
+    console.log(tblUsers);
 
     const CompanyID = tblUsers.CompanyID;
 
@@ -1060,6 +1185,7 @@ const delete_tblTickets = asyncHandler(async (req, res, next) => {
         {
           model: db.tblUsers,
           attributes: [],
+          as: "User",
           where: {
             CompanyID: CompanyID,
             Approved: "1",
@@ -1071,6 +1197,10 @@ const delete_tblTickets = asyncHandler(async (req, res, next) => {
 
     tblTicketTags = await db.tblTicketTags.findAll({
       include: [
+        {
+          model: db.tblTags,
+          attributes: ["Type"],
+        },
         {
           model: db.tblTickets,
           attributes: [],
@@ -1089,12 +1219,80 @@ const delete_tblTickets = asyncHandler(async (req, res, next) => {
   }
 });
 
-const notifications_WebSocket = asyncHandler(async (req, res, next) => {
+// const notifications_WebSocket = asyncHandler(async (req, res, next) => {
+//   try {
+//     var io = req.app.get("socketio");
+//     // io.emit("hi!");
+//   } catch (error) {}
+// });
+
+const get_Statistics = asyncHandler(async (req, res, next) => {
   try {
-    var io = req.app.get("socketio");
-    // io.emit("hi!");
+    const { organizationID } = req.query;
+
+    console.log("HERE ", req.query);
+
+    const ticketsStatus = await db.edeskio.query(
+      `SELECT Status, Count(Status) as Number from tblTickets a
+        INNER JOIN tblUsers b on a.UserID = b.ID 
+        where b.CompanyID = ${organizationID}  AND  a.SubmissionDate >= DATEADD(DAY,-7,GETDATE())
+        group by Status`
+    );
+
+    const ticketsActiveTech = await db.edeskio.query(
+      `SELECT u.FirstName + ' ' + u.LastName  as FullName, Count(t.[Status]) as ActiveTickets from tblUsers u
+        LEFT JOIN tblTickets t on t.TechnicianID = u.ID AND t.[Status] in ('Open')
+        INNER JOIN tblAccess a on a.UserID = u.ID 
+        where u.CompanyID = ${organizationID} AND a.RoleName in('Tech','Admin')
+        group by u.FirstName, u.LastName`
+    );
+
+    const ticketsUnresolved = await db.edeskio.query(
+      `SELECT CAST('Last 3 days' as varchar(100)) as Timeframe, 
+          (SELECT COUNT(*) 
+            FROM tblTickets t
+            LEFT JOIN tblUsers u
+              ON t.UserID = u.ID
+            WHERE u.CompanyID = ${organizationID} AND t.SubmissionDate >= DATEADD(DAY,-3,GETDATE())) AS TicketAmount
+      into #unresolved
+
+      INSERT INTO #unresolved (Timeframe, TicketAmount)
+      SELECT CAST('3-7 days ago' as varchar(100)) as Timeframe, 
+          (SELECT COUNT(*) 
+            FROM tblTickets t
+            LEFT JOIN tblUsers u
+              ON t.UserID = u.ID
+            WHERE u.CompanyID = ${organizationID} AND t.SubmissionDate < DATEADD(DAY,-3,GETDATE()) AND t.SubmissionDate >= DATEADD(DAY,-7,GETDATE())) AS TicketAmount
+
+      INSERT INTO #unresolved (Timeframe, TicketAmount)
+      SELECT CAST('Over 7 days ago' as varchar(100)) as Timeframe, 
+          (SELECT COUNT(*) 
+            FROM tblTickets t
+            LEFT JOIN tblUsers u
+              ON t.UserID = u.ID
+            WHERE u.CompanyID = ${organizationID} AND t.SubmissionDate < DATEADD(DAY,-7,GETDATE())) AS TicketAmount
+
+      SELECT * FROM #unresolved`
+    );
+
+    const underPerformingTechs = await db.edeskio.query(
+      `SELECT b.FirstName + ' ' + b.LastName  as FullName, Count(a.ID) as ClosedTickets from tblTickets a
+      INNER JOIN tblUsers b on a.TechnicianID = b.ID 
+      INNER JOIN tblAccess c on c.UserID = b.ID 
+      where b.CompanyID = ${organizationID} AND c.RoleName in('Tech','Admin') AND a.Status in('Closed') AND a.ClosedDate >= DATEADD(DAY,-14,GETDATE())
+      group by Status, FirstName, LastName
+      having  Count(a.ID) <=2`
+    );
+
+    return res.status(200).json({
+      ticketsStatus,
+      ticketsActiveTech,
+      ticketsUnresolved,
+      underPerformingTechs,
+    });
   } catch (error) {
-    console.log(error);
+    // return res.status(500).send(error.message);
+    return next(new errorResponse(error.message, 500));
   }
 });
 
@@ -1127,5 +1325,6 @@ module.exports = {
   put_tblTickets_CloseTicket,
   delete_tblTags,
   delete_tblTickets,
-  notifications_WebSocket,
+  get_Statistics,
+  // notifications_WebSocket,
 };

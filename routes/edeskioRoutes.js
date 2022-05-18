@@ -18,6 +18,7 @@ const {
   post_tblExpertiseTags,
   post_tblMessages_NewMessage,
   get_tblTickets,
+  get_Statistics,
   put_tblTickets_Assign,
   put_tblTickets_AutoAssign,
   put_tblTickets_Priority,
@@ -28,7 +29,6 @@ const {
   put_tblTickets_CloseTicket,
   delete_tblTags,
   delete_tblTickets,
-  notifications_WebSocket,
 } = require("../controllers/edeskioControllers");
 const router = Router();
 
@@ -53,6 +53,8 @@ router.get("/get_tblExpertiseTags_One", get_tblExpertiseTags_One);
 router.get("/get_TechniciansAssignInfo", get_TechniciansAssignInfo);
 
 router.get("/get_tblMessages_OneTicket", get_tblMessages_OneTicket);
+
+router.get("/get_Statistics", get_Statistics);
 
 router.post("/post_tblTickets_NewTicket", post_tblTickets_NewTicket);
 
@@ -96,7 +98,5 @@ router.put("/put_tblTickets_CloseTicket", put_tblTickets_CloseTicket);
 router.delete("/delete_tblTags", delete_tblTags);
 
 router.delete("/delete_tblTickets", delete_tblTickets);
-
-router.get("/test", notifications_WebSocket);
 
 module.exports = router;

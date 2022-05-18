@@ -239,7 +239,7 @@ const io = require("socket.io")(serverHttps, {
 
 //Mount namespaces
 require("./websockets/notifications")(io);
-
+require("./websockets/messages")(io);
 //Pass socket io instance to req
 app.set("socketio", io);
 

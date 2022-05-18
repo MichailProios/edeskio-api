@@ -4,13 +4,14 @@ module.exports = (sequelize, DataTypes) => {
     {
       ID: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       TicketID: DataTypes.INTEGER,
-      TagType: DataTypes.STRING,
+      TagID: DataTypes.INTEGER,
     },
     { freezeTableName: true, timestamps: false }
   );
 
   tblTicketTags.associate = (models) => {
     tblTicketTags.belongsTo(models.tblTickets, { foreignKey: "TicketID" });
+    tblTicketTags.belongsTo(models.tblTags, { foreignKey: "TagID" });
   };
 
   tblTicketTags.removeAttribute("id");

@@ -28,7 +28,13 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     tblTickets.belongsTo(models.tblUsers, {
+      as: "User",
       foreignKey: "UserID",
+    });
+
+    tblTickets.belongsTo(models.tblUsers, {
+      as: "Technician",
+      foreignKey: "TechnicianID",
     });
 
     tblTickets.hasMany(models.tblMessages, {

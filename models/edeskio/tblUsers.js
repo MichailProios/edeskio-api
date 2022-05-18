@@ -26,11 +26,16 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     tblUsers.hasMany(models.tblTickets, {
+      as: "Ticket",
       foreignKey: "UserID",
     });
 
     tblUsers.hasMany(models.tblMessages, {
       foreignKey: "SentBy",
+    });
+
+    tblUsers.hasMany(models.tblTickets, {
+      foreignKey: "TechnicianID",
     });
   };
 

@@ -10,7 +10,6 @@ const notifications = async (io) => {
   edeskio_models.tblTickets.afterCreate(
     "insertNotifications",
     async (ticket, options) => {
-      console.log(ticket);
       edeskio_models.tblNotifications
         .create({
           UserID: ticket.dataValues.UserID,

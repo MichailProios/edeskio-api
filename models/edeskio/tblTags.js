@@ -4,6 +4,7 @@ module.exports = (sequelize, DataTypes) => {
   const tblTags = sequelize.define(
     "tblTags",
     {
+      ID: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       Type: DataTypes.STRING,
       CategoryID: DataTypes.INTEGER,
     },
@@ -11,6 +12,13 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   tblTags.associate = (models) => {
+    tblTags.hasMany(models.tblExpertiseTags, {
+      foreignKey: "TagID",
+    });
+    tblTags.hasMany(models.tblTicketTags, {
+      foreignKey: "TagID",
+    });
+
     tblTags.belongsTo(models.tblTagCategories, { foreignKey: "CategoryID" });
   };
 
